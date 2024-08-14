@@ -16,6 +16,6 @@ namespace Epi.Data.PostgreSQL
         /// <summary>
         /// Long Binary Large Object
         /// </summary>
-        public static string Longblob = @"longblob";
+        public static string Bytea = @"bytea";
     }
 }

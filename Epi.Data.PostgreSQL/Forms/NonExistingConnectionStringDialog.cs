@@ -104,7 +104,7 @@ namespace Epi.Data.PostgreSQL.Forms
                 //dbConnectionStringBuilder.PersistSecurityInfo = false;
                 dbConnectionStringBuilder.Host = cmbServerName.Text.Trim();
                 dbConnectionStringBuilder.Database = txtDatabaseName.Text.Trim();
-                dbConnectionStringBuilder.UserName = txtUserName.Text;
+                dbConnectionStringBuilder.Username = txtUserName.Text;
                 dbConnectionStringBuilder.Password = txtPassword.Text;
                 this.DialogResult = DialogResult.OK;
                 this.Hide();

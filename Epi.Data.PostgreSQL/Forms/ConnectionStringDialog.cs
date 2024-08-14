@@ -225,7 +225,7 @@ namespace Epi.Data.PostgreSQL.Forms
                 dbConnectionStringBuilder.Database = txtDatabaseName.Text.Trim();
                 dbConnectionStringBuilder.Host = cmbServerName.Text.Trim();
                 dbConnectionStringBuilder.Port = int.Parse(txtPort.Text.Trim());
-                dbConnectionStringBuilder.UserName = txtUserName.Text.Trim();
+                dbConnectionStringBuilder.Username = txtUserName.Text.Trim();
                 dbConnectionStringBuilder.Password = txtPassword.Text.Trim();
                 this.DialogResult = DialogResult.OK;
                 this.Hide();

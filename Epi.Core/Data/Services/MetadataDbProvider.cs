@@ -9619,7 +9619,10 @@ namespace Epi.Data.Services
             {
                 ApplicationIdentity appId = new ApplicationIdentity(typeof(Configuration).Assembly);
 
+                bool isPostgresSQL = db.GetType().ToString().Equals("Epi.Data.PostgreSQL.PostgreSQLDatabase");
+
                 Query query = db.CreateQuery("insert into metaDBInfo([ProjectId], [ProjectName], [ProjectLocation], [EpiVersion], [Purpose]) values (@ProjectId, @ProjectName, @ProjectLocation, @EpiVersion, @Purpose)");
+
                 query.Parameters.Add(new QueryParameter("@ProjectId", DbType.Guid, this.Project.Id));
                 query.Parameters.Add(new QueryParameter("@ProjectName", DbType.String, Project.Name));
                 query.Parameters.Add(new QueryParameter("@ProjectLocation", DbType.String, Project.Location));

@@ -11,20 +11,17 @@ using Epi.Data;
 namespace Epi.Data.PostgreSQL
 {
     /// <summary>
-    /// MySQL implementation of DbDriverBase implementation of IDbDriver implementation.
+    /// PostgreSQL implementation of DbDriverBase implementation of IDbDriver implementation.
     /// </summary>
     public partial class PostgreSQLDatabase : DbDriverBase
     {
         /// <summary>
-        /// MySQL Database Constructor
+        /// PostgreSQL Database Constructor
         /// </summary>
         public PostgreSQLDatabase() : base() { }
 
-
-
-
         /// <summary>
-        /// Set MySQL path
+        /// Set PostgreSQL path
         /// </summary>
         /// <param name="filePath"></param>
         public void SetDataSourceFilePath(string filePath)
@@ -48,7 +45,7 @@ namespace Epi.Data.PostgreSQL
         /// </summary>
         public override string ConnectionDescription
         {
-            get { return "MySQL Database: " + this.DbName; }
+            get { return "PostgreSQL Database: " + this.DbName; }
         }
 
         /// <summary>
@@ -67,7 +64,18 @@ namespace Epi.Data.PostgreSQL
         /// <returns>Boolean</returns>
         public override bool AddColumn(string tableName, TableColumn column)
         {
-            // E. Knudsen - TODO
+            if (!IsValidIdentifier(tableName)) throw new ArgumentException(nameof(tableName));
+            if (!IsValidIdentifier(column.Name)) throw new ArgumentException(nameof(column));
+
+            string dataType = GetDbSpecificColumnType(column.DataType);
+
+            string sql = $"ALTER TABLE {tableName} ADD {column.Name} {dataType}";
+            if (column.Length != null)
+            {
+                sql = sql + $"({column.Length.Value.ToString()})";
+            }
+
+            ExecuteNonQuery(CreateQuery(sql));
             return false;
         }
 
@@ -86,9 +94,11 @@ namespace Epi.Data.PostgreSQL
         /// <param name="columns">Collection of columns for the table</param>
         public override void CreateTable(string tableName, List<TableColumn> columns)
         {
+            if (!IsValidIdentifier(tableName)) throw new ArgumentException(nameof(tableName));
+
             StringBuilder sb = new StringBuilder();
 
-            sb.Append("create table if not exists ");
+            sb.Append("CREATE TABLE ");
             sb.Append(tableName);
             sb.Append(" (");
 
@@ -110,7 +120,8 @@ namespace Epi.Data.PostgreSQL
             {
                 command.Connection = conn;
                 OpenConnection(conn);
-                command.ExecuteNonQuery();
+                int result = command.ExecuteNonQuery();
+                Console.WriteLine(result);
             }
             finally
             {
@@ -128,66 +139,70 @@ namespace Epi.Data.PostgreSQL
                 string columnType = GetDbSpecificColumnType(column.DataType);
                 sb.Append(column.Name);
                 sb.Append(" ");
-                sb.Append(columnType);
 
-                if (column.Length != null)
+                if (column.IsIdentity)
                 {
-                    if (columnType.Equals("text") ||
-                        (columnType.Equals("integer")) ||
-                        (columnType.Equals("bit")) ||
-                        (columnType.Equals("tinyint")) ||
-                        (columnType.Equals("smallint")) ||
-                        (columnType.Equals("mediumint")) ||
-                        (columnType.Equals("mediumtext")) ||
-                        (columnType.Equals("bigint")) ||
-                        (columnType.Equals("binary"))
-                        )
+                    sb.Append(" SERIAL");
+                }
+                else
+                {
+                    sb.Append(columnType);
+                    if (column.Length != null)
                     {
-                        if (column.Length.Value.ToString() != null)
+                        if (columnType.Equals("varchar") ||
+                            (columnType.Equals("integer")) ||
+                            (columnType.Equals("bit")) ||
+                            (columnType.Equals("tinyint")) ||
+                            (columnType.Equals("smallint")) ||
+                            (columnType.Equals("mediumint")) ||
+                            (columnType.Equals("mediumtext")) ||
+                            (columnType.Equals("bigint")) ||
+                            (columnType.Equals("binary"))
+                            )
+                        {
+                            if (column.Length.Value.ToString() != null)
+                            {
+                                sb.Append("(");
+                                sb.Append(column.Length.Value.ToString());
+                                sb.Append(")");
+                            }
+                        }
+                        else if ((columnType.Equals("double")) ||
+                            (columnType.Equals("float")) ||
+                            (columnType.Equals("decimal"))
+                            )
                         {
                             sb.Append("(");
                             sb.Append(column.Length.Value.ToString());
-                            sb.Append(")");
+                            if (column.Precision != null)
+                            {
+                                sb.Append(", ");
+                                sb.Append(column.Precision.ToString());
+                            }
+                            sb.Append(") ");
                         }
                     }
-                    else if ((columnType.Equals("double")) ||
-                        (columnType.Equals("float")) ||
-                        (columnType.Equals("decimal"))
-                        )
-                    {
-                        sb.Append("(");
-                        sb.Append(column.Length.Value.ToString());
-                        if (column.Precision != null)
-                        {
-                            sb.Append(", ");
-                            sb.Append(column.Precision.ToString());
-                        }
-                        sb.Append(") ");
-                    }
-                }
 
-                if (!column.AllowNull)
-                {
-                    sb.Append(" not");
-                }
-                sb.Append(" null");
-                if (column.IsIdentity)
-                {
-                    sb.Append(" auto_increment");
+                    if (!column.AllowNull)
+                    {
+                        sb.Append(" not");
+                    }
+                    sb.Append(" null");
                 }
                 if (column.IsPrimaryKey)
                 {
-                    sb.Append(" primary key");
+                    sb.Append(" PRIMARY KEY");
                 }
                 sb.Append(", ");
             }
             //remove trailing comma and space
             sb.Remove(sb.Length - 2, 2);
+
             return sb;
         }
 
         /// <summary>
-        /// Set MySQL Data Type mapping
+        /// Set PostgreSQL Data Type mapping
         /// </summary>
         /// <param name="dataType">DataType</param>
         /// <returns>String</returns>
@@ -198,25 +213,25 @@ namespace Epi.Data.PostgreSQL
                 case GenericDbColumnType.AnsiString:
                 case GenericDbColumnType.AnsiStringFixedLength:
                 case GenericDbColumnType.Byte:
-                case GenericDbColumnType.Guid:
                 case GenericDbColumnType.String:
                 case GenericDbColumnType.StringFixedLength:
                     return "text";              
                 case GenericDbColumnType.Binary:
-                    return "binary";
+                    return "bytea";
                 case GenericDbColumnType.Boolean:
-                    return "bool";                
+                    return "bit";                
                 case GenericDbColumnType.Currency:
+                    return "money";
                 case GenericDbColumnType.Double:
-                    return "double";
+                    return "double precision";
                 case GenericDbColumnType.Date:
                     return "date";
                 case GenericDbColumnType.DateTime:
-                    return "datetime";
+                    return "timestamp";
                 case GenericDbColumnType.Decimal:
                     return "decimal";
                 case GenericDbColumnType.Image:
-                    return PostgreSQLDbColumnType.Longblob;
+                    return PostgreSQLDbColumnType.Bytea;
                 case GenericDbColumnType.Int16:
                 case GenericDbColumnType.UInt16:
                     return "smallint";
@@ -227,19 +242,21 @@ namespace Epi.Data.PostgreSQL
                 case GenericDbColumnType.UInt64:
                     return "bigint";
                 case GenericDbColumnType.Object:
-                    return "blob";
+                    return "bytea";
                 case GenericDbColumnType.SByte:
-                    return "tinyint";
+                    return "smallint";
                 case GenericDbColumnType.Single:
-                    return "float";
+                    return "real";
                 case GenericDbColumnType.StringLong:
-                    return "longtext";
+                    return "text";
                 case GenericDbColumnType.Time:
                     return "time";
                 case GenericDbColumnType.VarNumeric:
                     return "decimal";
+                case GenericDbColumnType.Guid:
+                    return "uuid";
                 case GenericDbColumnType.Xml:
-                    return "mediumtext";
+                    return "xml";
                 default:
                     throw new GeneralException("genericDbColumnType is unknown");
             }
@@ -314,15 +331,15 @@ namespace Epi.Data.PostgreSQL
         /// <returns></returns>
         public string BuildDefaultConnectionString(string database, string server, int port, string user, string password)
         {
-            NpgsqlConnectionStringBuilder mySQLConnBuild = new NpgsqlConnectionStringBuilder();
+            NpgsqlConnectionStringBuilder postgreSQLConnBuild = new NpgsqlConnectionStringBuilder();
             //mySQLConnBuild.PersistSecurityInfo = false;
-            mySQLConnBuild.Database = database;
-            mySQLConnBuild.Host = server;
-            mySQLConnBuild.Port = port;
-            mySQLConnBuild.UserName = user;
-            mySQLConnBuild.Password = password;
+            postgreSQLConnBuild.Database = database;
+            postgreSQLConnBuild.Host = server;
+            postgreSQLConnBuild.Port = port;
+            postgreSQLConnBuild.Username = user;
+            postgreSQLConnBuild.Password = password;
 
-            return mySQLConnBuild.ToString();
+            return postgreSQLConnBuild.ToString();
         }
 
         /// <summary>
@@ -334,7 +351,14 @@ namespace Epi.Data.PostgreSQL
         /// <returns>Boolean</returns>
         public override bool AlterColumnType(string tableName, string columnName, string columnType)
         {
-            // dpb todo
+            if (!IsValidIdentifier(tableName)) throw new ArgumentException(nameof(tableName));
+            if (!IsValidIdentifier(columnName)) throw new ArgumentException(nameof(columnName));
+
+            string sql = $"ALTER TABLE {tableName} ALTER COLUMN {columnName} TYPE {columnType};";
+            ExecuteNonQuery(CreateQuery(sql));
+            
+            Console.WriteLine($"Column '{columnName}' type changed to '{columnType}' in table '{tableName}'.");
+            
             return false;
         }
         
@@ -350,7 +374,7 @@ namespace Epi.Data.PostgreSQL
             }
             catch (Exception ex)
             {
-                throw new GeneralException("Could not connect to MySQL Database.", ex);
+                throw new GeneralException("Could not connect to PostgreSQL Database.", ex);
             }
         }
 
@@ -391,8 +415,8 @@ namespace Epi.Data.PostgreSQL
         /// <returns>Connection instance</returns>
         protected NpgsqlConnection GetConnection(string connectionString)
         {
-            NpgsqlConnectionStringBuilder mySQLConnectionStringBuilder = new NpgsqlConnectionStringBuilder(connectionString);
-            return new NpgsqlConnection(mySQLConnectionStringBuilder.ToString());
+            NpgsqlConnectionStringBuilder postSQLConnectionStringBuilder = new NpgsqlConnectionStringBuilder(connectionString);
+            return new NpgsqlConnection(postSQLConnectionStringBuilder.ToString());
         }
 
         public override bool IsBulkOperation
@@ -433,7 +457,7 @@ namespace Epi.Data.PostgreSQL
         }
 
         /// <summary>
-        /// MySQL data source.
+        /// PostgreSQL data source.
         /// </summary>
         public override string DataSource
         {
@@ -481,11 +505,11 @@ namespace Epi.Data.PostgreSQL
         /// <returns>A native equivalent of a DbParameter</returns>
         protected virtual NpgsqlParameter ConvertToNativeParameter(QueryParameter parameter)
         {
-            //TODO: Test this when MySQL comes back on the radar.
-            if (parameter.DbType.Equals(DbType.Guid))
-            {
-                parameter.Value = new Guid(parameter.Value.ToString());
-            }
+            //TODO: Test this when PostSQL comes back on the radar.
+            //if (parameter.DbType.Equals(DbType.Guid))
+            //{
+            //    parameter.Value = new Guid(parameter.Value.ToString());
+            //}
 
             return new NpgsqlParameter(parameter.ParameterName, CovertToNativeDbType(parameter.DbType), parameter.Size, parameter.SourceColumn, parameter.Direction, parameter.IsNullable, parameter.Precision, parameter.Scale, parameter.SourceVersion, parameter.Value);
         }
@@ -515,10 +539,10 @@ namespace Epi.Data.PostgreSQL
         /// <returns></returns>
         protected NpgsqlCommand GetNativeCommand(IDbTransaction transaction)
         {
-            NpgsqlTransaction mySqltransaction = transaction as NpgsqlTransaction;
+            NpgsqlTransaction postgreSqltransaction = transaction as NpgsqlTransaction;
 
             #region Input Validation
-            if (mySqltransaction == null)
+            if (postgreSqltransaction == null)
             {
                 throw new ArgumentException("Transaction parameter must be a NpgsqlTransaction.", "transaction");
             }
@@ -694,11 +718,16 @@ namespace Epi.Data.PostgreSQL
         /// <returns></returns>
         public override bool ColumnExists(string tableName, string columnName)
         {
-            Query query = this.CreateQuery("select * from information_schema.COLUMNS where TABLE_NAME=@TableName and COLUMN_NAME=@ColumnName and table_schema=@dbName;");
+            Query query = this.CreateQuery("SELECT * FROM information_schema.columns WHERE table_name = @TableName and column_name = @ColumnName and table_schema = @dbName;");
             query.Parameters.Add(new QueryParameter("@TableName", DbType.String, tableName));
             query.Parameters.Add(new QueryParameter("@ColumnName", DbType.String, columnName));
             query.Parameters.Add(new QueryParameter("@dbName", DbType.String, this.dbName));
-            return (Select(query).Rows.Count > 0);
+            
+            int rows = Select(query).Rows.Count;
+
+            bool columnExists = rows > 0;
+
+            return columnExists;
         }
 
         /// <summary>
@@ -858,7 +887,7 @@ namespace Epi.Data.PostgreSQL
         /// <returns>Boolean</returns>
         public override bool DeleteColumn(string tableName, string columnName)
         {
-            Query query = this.CreateQuery("ALTER TABLE " + tableName + " DROP COLUMN " + columnName);
+            Query query = this.CreateQuery($"ALTER TABLE {tableName} DROP COLUMN {columnName};");
             return (ExecuteNonQuery(query) > 0);
         }
         
@@ -891,7 +920,7 @@ namespace Epi.Data.PostgreSQL
         }
 
         /// <summary>
-        /// Gets column schema information about an MySQL table
+        /// Gets column schema information about an PostgreSQL table
         /// </summary>
         /// <param name="tableName">Name of the table</param>
         /// <returns>DataTable with schema information</returns>
@@ -992,7 +1021,7 @@ namespace Epi.Data.PostgreSQL
         }
 
         /// <summary>
-        /// Gets Primary_Keys schema information about a MySQL table
+        /// Gets Primary_Keys schema information about a PostgreSQL table
         /// </summary>
         /// <param name="tableName">Name of the table</param>
         /// <returns>DataTable with schema information</returns>
@@ -1099,12 +1128,16 @@ namespace Epi.Data.PostgreSQL
             #region Input Validation
             if (tableName == null)
             {
-                throw new ArgumentNullException("tableName");
+                throw new ArgumentNullException(nameof(tableName));
+            }
+            if (!IsValidIdentifier(tableName))
+            {
+                throw new ArgumentException(nameof(tableName));
             }
             #endregion
             try
             {   
-                string queryString = "select * from " + tableName + " limit 2";                
+                string queryString = "SELECT * FROM " + tableName + " LIMIT 2";                
                 Query query = this.CreateQuery(queryString);
                 return Select(query);
             }
@@ -1123,16 +1156,38 @@ namespace Epi.Data.PostgreSQL
             #region Input Validation
             if (tableName == null)
             {
-                throw new ArgumentNullException("tableName");
+                throw new ArgumentNullException(nameof(tableName));
+            }
+            if (!IsValidIdentifier(tableName))
+            {
+                throw new ArgumentException(nameof(tableName));
             }
             #endregion
-            Query query = this.CreateQuery("select * from " + tableName);
+            Query query = this.CreateQuery($"SELECT * FROM {tableName}");
             return this.ExecuteReader(query);
         }
 
         public override IDataReader GetTableDataReader(string tableName, string sortColumnName)
         {
-            Query query = this.CreateQuery("select * from " + tableName + " ORDER BY " + sortColumnName);
+            #region Input Validation
+            if (tableName == null)
+            {
+                throw new ArgumentNullException(nameof(tableName));
+            }
+            if (!IsValidIdentifier(tableName))
+            {
+                throw new ArgumentException(nameof(tableName));
+            }
+            if (sortColumnName == null)
+            {
+                throw new ArgumentNullException(nameof(sortColumnName));
+            }
+            if (!IsValidIdentifier(sortColumnName))
+            {
+                throw new ArgumentException(nameof(sortColumnName));
+            }
+            #endregion
+            Query query = this.CreateQuery($"SELECT * FROM {tableName} ORDER BY {sortColumnName}");
             return this.ExecuteReader(query);
         }
 
@@ -1306,7 +1361,7 @@ namespace Epi.Data.PostgreSQL
         }
 
         /// <summary>
-        /// Create MySQL query object
+        /// Create PostgreSQL query object
         /// </summary>
         /// <param name="ansiSqlStatement">Query string</param>
         /// <returns>Query</returns>
@@ -1358,9 +1413,9 @@ namespace Epi.Data.PostgreSQL
         }
 
         /// <summary>
-        /// Gets the MySQL version of a generic DbType
+        /// Gets the PostgreSQL version of a generic DbType
         /// </summary>
-        /// <returns>MySQL version of the generic DbType</returns>
+        /// <returns>PostgreSQL version of the generic DbType</returns>
         public NpgsqlDbType CovertToNativeDbType(DbType dbType)
         {
             switch (dbType)
@@ -1386,7 +1441,7 @@ namespace Epi.Data.PostgreSQL
                 case DbType.Double:
                     return NpgsqlDbType.Double;
                 case DbType.Guid:
-                    return NpgsqlDbType.Text;
+                    return NpgsqlDbType.Uuid;
                 case DbType.Int16:
                     return NpgsqlDbType.Smallint;//.Int16;
                 case DbType.Int32:
@@ -1424,7 +1479,7 @@ namespace Epi.Data.PostgreSQL
         /// <param name="sqlStatement">The query to be executed against the database</param>
         /// <param name="transaction">Transction</param>
         /// <param name="parameters">parameters">Parameters for the query to be executed</param>
-        /// <returns>An MySQL command object</returns>
+        /// <returns>An PostgreSQL command object</returns>
         protected virtual IDbCommand GetCommand(string sqlStatement, IDbTransaction transaction, List<QueryParameter> parameters)
         {
 
@@ -1537,7 +1592,7 @@ namespace Epi.Data.PostgreSQL
         }
 
         /// <summary>
-        /// Inserts the string in escape characters. [] for SQL server and `` for MySQL etc.
+        /// Inserts the string in escape characters. [] for SQL server and `` for PostgreSQL etc.
         /// </summary>
         /// <param name="str">string</param>
         /// <returns>string</returns>
@@ -1674,6 +1729,18 @@ namespace Epi.Data.PostgreSQL
         public override System.Data.Common.DbCommand GetCommand(string pKeyString, DataTable pDataTable)
         {
             throw new NotImplementedException();
+        }
+
+        private static readonly Regex ValidIdentifierRegex = new Regex(@"^[a-zA-Z_][a-zA-Z0-9_]*$", RegexOptions.Compiled);
+
+        private static bool IsValidIdentifier(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+            {
+                return false; // An identifier cannot be null or empty.
+            }
+
+            return ValidIdentifierRegex.IsMatch(input);
         }
     }
 }

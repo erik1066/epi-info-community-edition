@@ -13,7 +13,7 @@ using System.Windows.Forms;
 namespace Epi.Data.PostgreSQL
 {
     /// <summary>
-    /// MySQLDBFactory - Database Factory for MySQL Databases
+    /// PostgreSQLDBFactory - Database Factory for PostgreSQL Databases
     /// </summary>
     public class PostgreSQLDBFactory : IDbDriverFactory
     {
@@ -49,8 +49,8 @@ namespace Epi.Data.PostgreSQL
             NpgsqlConnectionStringBuilder tempBuilder = new NpgsqlConnectionStringBuilder(dbInfo.DBCnnStringBuilder.ToString());
             
             //tempBuilder = dbInfo.DBCnnStringBuilder as MySqlConnectionStringBuilder;
-            //The "test" database is installed by default with MySQL.  System needs to login to this database to create a new database.
-            tempBuilder.Database = "information_schema"; 
+            //The "test" database is installed by default with PostgreSQL.  System needs to login to this database to create a new database.
+            tempBuilder.Database = "postgres"; 
             
             NpgsqlConnection masterConnection = new NpgsqlConnection(tempBuilder.ToString());
             
@@ -59,7 +59,8 @@ namespace Epi.Data.PostgreSQL
                 NpgsqlCommand command = masterConnection.CreateCommand();
                 if(dbInfo.DBName != null)
                 {
-                    command.CommandText = "create database " + dbInfo.DBName + ";";
+                    string databaseName = dbInfo.DBName;
+                    command.CommandText = $"CREATE DATABASE \"{databaseName}\"";
                 }
                 
                 masterConnection.Open();
@@ -71,7 +72,7 @@ namespace Epi.Data.PostgreSQL
             }
             catch (Exception ex)
             {
-                throw new System.ApplicationException("Could not create new MySQL Database", ex);//(Epi.SharedStrings.CAN_NOT_CREATE_NEW_MYSQL, ex); 
+                throw new System.ApplicationException("Could not create new PostgreSQL Database", ex);//(Epi.SharedStrings.CAN_NOT_CREATE_NEW_MYSQL, ex); 
             }
             finally
             {
@@ -179,7 +180,7 @@ namespace Epi.Data.PostgreSQL
         }
 
         /// <summary>
-        /// Default MySQL ConnectionString request.
+        /// Default PostgreSQL ConnectionString request.
         /// </summary>
         /// <param name="database">Data store.</param>
         /// <param name="server">Server location of database.</param>
@@ -192,7 +193,7 @@ namespace Epi.Data.PostgreSQL
             mySQLConnBuild.Database = database;
             mySQLConnBuild.Host = server;
             mySQLConnBuild.Port = port;
-            mySQLConnBuild.UserName = user;
+            mySQLConnBuild.Username = user;
             mySQLConnBuild.Password = password;
 
             return (mySQLConnBuild as DbConnectionStringBuilder); 
@@ -220,12 +221,74 @@ namespace Epi.Data.PostgreSQL
 
         public string GetCreateFromDataTableSQL(string tableName, DataTable table)
         {
-            throw new NotImplementedException();
+            string sql = $"CREATE TABLE {tableName} (\n";
+            bool HasUniqueKey = false;
+            
+            // columns
+            foreach (DataColumn column in table.Columns)
+            {
+                if (column.ColumnName.Equals("uniquekey", StringComparison.OrdinalIgnoreCase))
+                {
+                    HasUniqueKey = true;
+                    sql += column.ColumnName + " SERIAL PRIMARY KEY,\n";
+                }
+                else
+                {
+                    if (!column.ColumnName.Contains("."))
+                    {
+                        sql += column.ColumnName + " " + SQLGetType(column) + ",\n";
+                    }
+                }
+            }
+
+            if (HasUniqueKey)
+            {
+                sql = sql + "PRIMARY KEY (uniquekey)\n";
+            }
+            else
+            {
+                sql = sql.TrimEnd(new char[] { ',', '\n' });
+            }
+
+            sql = sql + "\n);";
+
+            return sql;
+        }
+
+        private string SQLGetType(DataColumn column)
+        {
+            return SQLGetType(column.DataType, column.MaxLength, 10, 2);
         }
 
         public string SQLGetType(object type, int columnSize, int numericPrecision, int numericScale)
         {
-            throw new NotImplementedException();
+            switch (type.ToString())
+            {
+                case "System.Boolean":
+                    return "boolean";
+                case "System.Byte":
+                    return "smallint"; // There is no direct byte type in PostgreSQL, smallint is the closest.
+                case "System.Int16":
+                    return "smallint";
+                case "System.Int32":
+                    return "integer";
+                case "System.Int64":
+                    return "bigint";
+                case "System.Single":
+                    return "real";
+                case "System.Double":
+                    return "double precision";
+                case "System.Decimal":
+                    return "numeric";
+                case "System.DateTime":
+                    return "timestamp without time zone"; // or "timestamp with time zone"
+                case "System.String":
+                    return "text"; // or you could use varchar(n), where n is the length limit
+                case "System.Guid":
+                    return "uuid";
+                default:
+                    throw new Exception(type.ToString() + " not implemented.");
+            }
         }
     }
 }

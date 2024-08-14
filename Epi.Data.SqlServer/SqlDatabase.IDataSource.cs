@@ -68,7 +68,7 @@ namespace Epi.Data.SqlServer
             }
             catch (Exception e)
             {
-                Logger.Log("Error MySQLDatabase.IDataSource.GetDataTableReader:\n" + e.ToString());
+                Logger.Log("Error SQLDatabase.IDataSource.GetDataTableReader:\n" + e.ToString());
             }
             return result;
         }
@@ -133,7 +133,6 @@ namespace Epi.Data.SqlServer
         /// <returns></returns>
         public override bool CreateDataBase(string pFileString)
         {
-            
             throw new Exception("Method NOT implemented");
         }
         /// <summary>
@@ -145,7 +144,6 @@ namespace Epi.Data.SqlServer
         /// <returns></returns>
         public override bool CheckDatabaseExistance(string pFileString, string pTableName, bool pIsConnectionString = false)
         {
-
             System.Data.Common.DbConnection Conn = null;
             //System.Data.Common.DbDataAdapter Adapter = null;
             System.Data.DataTable DataTable = new System.Data.DataTable();

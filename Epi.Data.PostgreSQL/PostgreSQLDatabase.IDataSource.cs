@@ -22,7 +22,7 @@ namespace Epi.Data.PostgreSQL
             }
             catch (Exception e)
             {
-                Logger.Log("Error MySQLDatabase.IDataSource.GetDataTableReader:\n" + e.ToString());
+                Logger.Log("Error PostgreSQLDatabase.IDataSource.GetDataTableReader:\n" + e.ToString());
             }
             return result;
         }
@@ -43,7 +43,7 @@ namespace Epi.Data.PostgreSQL
             }
             catch (Exception e)
             {
-                Logger.Log("Error MySQLDatabase.IDataSource.Execute:\n" + e.ToString());
+                Logger.Log("Error PostgreSQLDatabase.IDataSource.Execute:\n" + e.ToString());
             }
             return result;
         }
@@ -70,7 +70,7 @@ namespace Epi.Data.PostgreSQL
             }
             catch (Exception e)
             {
-                Logger.Log("Error MySQLDatabase.IDataSource.GetDataTableReader:\n" + e.ToString());
+                Logger.Log("Error PostgreSQLDatabase.IDataSource.GetDataTableReader:\n" + e.ToString());
             }
             return result;
         }
@@ -135,7 +135,7 @@ namespace Epi.Data.PostgreSQL
         /// <returns></returns>
         public override bool CreateDataBase(string pFileString)
         {
-            throw new Exception("Method NOT implemented");
+            throw new NotImplementedException("Method NOT implemented");
         }
         /// <summary>
         /// 
@@ -146,7 +146,48 @@ namespace Epi.Data.PostgreSQL
         /// <returns></returns>
         public override bool CheckDatabaseExistance(string pFileString, string pTableName, bool pIsConnectionString = false)
         {
-            throw new Exception("Method NOT implemented");
+            bool result = false;
+
+            System.Data.Common.DbConnection Conn = null;
+
+            string connString = pFileString;
+
+            string[] restrictions = new string[] { null, null, pTableName };
+
+            if (DataSource != null)
+            {
+                IDbDriver driver = this;
+                driver.ConnectionString = connString;
+                Conn = (System.Data.Common.DbConnection)driver.GetConnection();
+                try
+                {
+                    Conn.Open();
+                    
+                    System.Data.Common.DbCommand cmd = Conn.CreateCommand();
+                    string sql = "SELECT 1 FROM pg_database WHERE datname = @databaseName;";
+                    System.Data.Common.DbParameter parameter = cmd.CreateParameter();
+                    parameter.ParameterName = "@databaseName";
+                    parameter.Value = driver.DbName;
+                    cmd.Parameters.Add(parameter);
+
+                    object ret = cmd.ExecuteScalar();
+                    if (ret != null)
+                    {
+                        int databaseID = (int)ret;
+                        result = databaseID > 0;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // do nothing
+                }
+                finally
+                {
+                    Conn.Close();
+                }
+            }
+
+            return result;
         }
     }
 }

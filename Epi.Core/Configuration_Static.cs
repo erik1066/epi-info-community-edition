@@ -854,7 +854,7 @@ namespace Epi
 			dataDriverRowJSON.MetadataProvider = false;
 			configDataSet.DataDriver.Rows.Add(dataDriverRowJSON);
 
-			Config.DataDriverRow dataDriverRowMySql = configDataSet.DataDriver.NewDataDriverRow();
+            Config.DataDriverRow dataDriverRowMySql = configDataSet.DataDriver.NewDataDriverRow();
             dataDriverRowMySql.DataDriversRow = parentDataDriversRow;
             dataDriverRowMySql.DisplayName = "MySQL Database";
             dataDriverRowMySql.Type = MySQLDriver;
@@ -875,7 +875,7 @@ namespace Epi
             dataDriverRowPostgreSql.DisplayName = "PostgreSQL Database";
             dataDriverRowPostgreSql.Type = PostgreSQLDriver;
             dataDriverRowPostgreSql.DataProvider = true;
-            dataDriverRowPostgreSql.MetadataProvider = false;
+            dataDriverRowPostgreSql.MetadataProvider = true;
             configDataSet.DataDriver.Rows.Add(dataDriverRowPostgreSql);
 
             //// MySQLDriver Driver
