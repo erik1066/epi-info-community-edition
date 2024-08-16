@@ -99,7 +99,7 @@ namespace Epi.Data.PostgreSQL
             StringBuilder sb = new StringBuilder();
 
             sb.Append("CREATE TABLE ");
-            sb.Append(tableName);
+            sb.Append(InsertInEscape(tableName));
             sb.Append(" (");
 
             AddColumns(sb, tableName, columns);
@@ -134,10 +134,14 @@ namespace Epi.Data.PostgreSQL
         // Add columns to a My SQL Database
         private StringBuilder AddColumns(StringBuilder sb, string tableName, List<TableColumn> columns)
         {
+            if (!IsValidIdentifier(tableName)) throw new ArgumentException(nameof(tableName));
+
             foreach (TableColumn column in columns)
             {
+                if (!IsValidIdentifier(column.Name)) throw new InvalidOperationException($"Column name {column.Name} contains characters that are invalid for PostgreSQL.");
+
                 string columnType = GetDbSpecificColumnType(column.DataType);
-                sb.Append(column.Name);
+                sb.Append(InsertInEscape(column.Name));
                 sb.Append(" ");
 
                 if (column.IsIdentity)
@@ -354,7 +358,7 @@ namespace Epi.Data.PostgreSQL
             if (!IsValidIdentifier(tableName)) throw new ArgumentException(nameof(tableName));
             if (!IsValidIdentifier(columnName)) throw new ArgumentException(nameof(columnName));
 
-            string sql = $"ALTER TABLE {tableName} ALTER COLUMN {columnName} TYPE {columnType};";
+            string sql = $"ALTER TABLE {InsertInEscape(tableName)} ALTER COLUMN {InsertInEscape(columnName)} TYPE {InsertInEscape(columnType)};";
             ExecuteNonQuery(CreateQuery(sql));
             
             Console.WriteLine($"Column '{columnName}' type changed to '{columnType}' in table '{tableName}'.");
@@ -718,6 +722,9 @@ namespace Epi.Data.PostgreSQL
         /// <returns></returns>
         public override bool ColumnExists(string tableName, string columnName)
         {
+            if (!IsValidIdentifier(tableName)) throw new ArgumentException(nameof(tableName));
+            if (!IsValidIdentifier(tableName)) throw new ArgumentException(nameof(columnName));
+
             Query query = this.CreateQuery("SELECT * FROM information_schema.columns WHERE table_name = @TableName and column_name = @ColumnName and table_schema = @dbName;");
             query.Parameters.Add(new QueryParameter("@TableName", DbType.String, tableName));
             query.Parameters.Add(new QueryParameter("@ColumnName", DbType.String, columnName));
@@ -887,7 +894,7 @@ namespace Epi.Data.PostgreSQL
         /// <returns>Boolean</returns>
         public override bool DeleteColumn(string tableName, string columnName)
         {
-            Query query = this.CreateQuery($"ALTER TABLE {tableName} DROP COLUMN {columnName};");
+            Query query = this.CreateQuery($"ALTER TABLE {InsertInEscape(tableName)} DROP COLUMN {InsertInEscape(columnName)};");
             return (ExecuteNonQuery(query) > 0);
         }
         
@@ -1105,7 +1112,7 @@ namespace Epi.Data.PostgreSQL
                 {
                     columnNames = Epi.StringLiterals.STAR;
                 }
-                string queryString = "select " + columnNames + " from [" + tableName + "]";
+                string queryString = "select " + columnNames + " from " + InsertInEscape(tableName) + "";
                 if (!string.IsNullOrEmpty(sortCriteria))
                 {
                     queryString += " order by " + sortCriteria;
@@ -1137,7 +1144,7 @@ namespace Epi.Data.PostgreSQL
             #endregion
             try
             {   
-                string queryString = "SELECT * FROM " + tableName + " LIMIT 2";                
+                string queryString = "SELECT * FROM " + InsertInEscape(tableName) + " LIMIT 2";                
                 Query query = this.CreateQuery(queryString);
                 return Select(query);
             }
@@ -1163,7 +1170,7 @@ namespace Epi.Data.PostgreSQL
                 throw new ArgumentException(nameof(tableName));
             }
             #endregion
-            Query query = this.CreateQuery($"SELECT * FROM {tableName}");
+            Query query = this.CreateQuery($"SELECT * FROM {InsertInEscape(tableName)}");
             return this.ExecuteReader(query);
         }
 
@@ -1187,7 +1194,7 @@ namespace Epi.Data.PostgreSQL
                 throw new ArgumentException(nameof(sortColumnName));
             }
             #endregion
-            Query query = this.CreateQuery($"SELECT * FROM {tableName} ORDER BY {sortColumnName}");
+            Query query = this.CreateQuery($"SELECT * FROM {InsertInEscape(tableName)} ORDER BY {InsertInEscape(sortColumnName)}");
             return this.ExecuteReader(query);
         }
 
@@ -1598,17 +1605,17 @@ namespace Epi.Data.PostgreSQL
         /// <returns>string</returns>
         public override string InsertInEscape(string str)
         {
-            //string newString = string.Empty;
-            //if (!str.StartsWith(StringLiterals.BACK_TICK))
-            //{
-            //    newString = StringLiterals.BACK_TICK;
-            //}
-            //newString += str;
-            //if (!str.EndsWith(StringLiterals.BACK_TICK))
-            //{
-            //    newString += StringLiterals.BACK_TICK;
-            //}
-            //return newString;
+            string newString = string.Empty;
+            if (!str.StartsWith(StringLiterals.DOUBLEQUOTES))
+            {
+                newString = StringLiterals.DOUBLEQUOTES;
+            }
+            newString += str;
+            if (!str.EndsWith(StringLiterals.DOUBLEQUOTES))
+            {
+                newString += StringLiterals.DOUBLEQUOTES;
+            }
+            return newString;
 
             return str;
         }
