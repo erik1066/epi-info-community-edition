@@ -1157,7 +1157,7 @@ namespace Epi.Data.Services
                     "order by F.[ControlTopPositionPercentage], F.[ControlLeftPositionPercentage]";
 
                 Query query = db.CreateQuery(queryString);
-                query.Parameters.Add(new QueryParameter("@viewID", DbType.Int32, view.Id));
+                query.Parameters.Add(new QueryParameter("@viewId", DbType.Int32, view.Id));
                 return db.Select(query);
             }
             finally
@@ -5472,8 +5472,8 @@ namespace Epi.Data.Services
             {
                 string queryString = "update metaPages set [Name] = @name, [Position] = @position, [CheckCodeBefore] = @CheckCodeBefore, [CheckCodeAfter] = @CheckCodeAfter, [BackgroundId] = @BackgroundId where [PageId] = @PageId";
                 Query updateQuery = db.CreateQuery(queryString);
-                updateQuery.Parameters.Add(new QueryParameter("@Name", DbType.String, page.Name));
-                updateQuery.Parameters.Add(new QueryParameter("@Position", DbType.Int32, page.Position));
+                updateQuery.Parameters.Add(new QueryParameter("@name", DbType.String, page.Name));
+                updateQuery.Parameters.Add(new QueryParameter("@position", DbType.Int32, page.Position));
                 updateQuery.Parameters.Add(new QueryParameter("@CheckCodeBefore", DbType.String, page.CheckCodeBefore));
                 updateQuery.Parameters.Add(new QueryParameter("@CheckCodeAfter", DbType.String, page.CheckCodeAfter));
                 updateQuery.Parameters.Add(new QueryParameter("@BackgroundId", DbType.String, page.BackgroundId));
@@ -9593,7 +9593,7 @@ namespace Epi.Data.Services
 
                 foreach (AppDataSet.LayerRenderTypesRow layerRenderType in AppData.Instance.LayerRenderTypesDataTable.Rows)
                 {
-                    query = db.CreateQuery("insert into metaLayerRenderTypes ([LayerRenderTypeId], [Name]) values (@LayerRenderTypeId, @Name)");
+                    query = db.CreateQuery($"insert into metaLayerRenderTypes ({db.InsertInEscape("LayerRenderTypeId")}, {db.InsertInEscape("Name")}) values (@LayerRenderTypeId, @Name)");
                     query.Parameters.Add(new QueryParameter("@LayerRenderTypeId", DbType.Int32, layerRenderType.LayerRenderTypeId));
                     query.Parameters.Add(new QueryParameter("@Name", DbType.String, layerRenderType.Name));
                     
